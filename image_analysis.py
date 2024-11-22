@@ -44,14 +44,14 @@ def line_analysis(lines,vertical_line_tracks,horizontal_line_tracks):
 
     # Update absence count for lines not detected in this iteration
     for i in range(len(vertical_line_tracks)):
-        if vertical_line_tracks[i][5] < 30:
+        if vertical_line_tracks[i][5] < 5:
             vertical_line_tracks[i][5] += 1  # Increment the absent count if not detected
         else:
             del vertical_line_tracks[i]  # Remove line if absent for more than 10 iterations
             break  # Break after removal to avoid index shift during iteration
 
     for i in range(len(horizontal_line_tracks)):
-        if horizontal_line_tracks[i][5] < 30:
+        if horizontal_line_tracks[i][5] < 5:
             horizontal_line_tracks[i][5] += 1  # Increment the absent count if not detected
         else:
             del horizontal_line_tracks[i]  # Remove line if absent for more than 10 iterations
@@ -95,7 +95,7 @@ def circle_analysis(circles,circle_tracks):
 
     # Update absence count for circles not detected in this iteration
     for i in range(len(circle_tracks)):
-        if circle_tracks[i][4] < 10:
+        if circle_tracks[i][4] < 5:
             circle_tracks[i][4] += 1  # Increment the absent count if not detected
         else:
             # Remove the circle if it's been absent for more than 10 iterations

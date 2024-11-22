@@ -18,10 +18,10 @@ def draw_features_items(rotated_frame,circle_tracks,vertical_line_tracks,horizon
         cv2.line(rotated_frame, (x1, y1), (x2, y2), (255, 0, 0), 3)  # Blue for horizontal lines
     return rotated_frame
 
-def label_cricles(rotated_frame,masked_frame,circle_tracks,circle_colors=[]):
+def label_circles(rotated_frame,masked_frame,circle_tracks,circle_colors=[]):
     for track in circle_tracks:
         track_x, track_y, track_r, track_count, track_absent_count = track
-        if track_count > 30:
+        if track_count > 2:
 
             y_min = track_y - track_r//2
             y_max = track_y + track_r//2
@@ -44,68 +44,82 @@ def label_cricles(rotated_frame,masked_frame,circle_tracks,circle_colors=[]):
                 circle_colors.append(1)
     return rotated_frame,circle_colors
 # Open the camera (default is 0, which is usually the default webcam)
-cap = cv2.VideoCapture(0)
 
-# Check if the camera is opened successfully
-if not cap.isOpened():
-    print("Error: Could not open camera.")
-    exit()
+import cv2
+import numpy as np
 
-# A list to store circle details with their count and absence count
-circle_tracks = []  # Each element will be [x, y, r, count, absent_count]
-vertical_line_tracks=[]
-horizontal_line_tracks=[]
-counter=0
-ready_status=False
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        print("Error: Failed to capture image.")
-        break
-
-    cropped_frame = frame[50:450, 230:600]
-    rotated_frame = cv2.transpose(cropped_frame)  
-    gray_frame = cv2.cvtColor(rotated_frame, cv2.COLOR_BGR2GRAY)
-    _, masked_frame = cv2.threshold(gray_frame, 127, 255, cv2.THRESH_BINARY)
-    edges = cv2.Canny(masked_frame, 100, 20, apertureSize=3)
+class Camera:
+    def __init__(self):
+        #self.cap = cv2.VideoCapture(0)
+        self.circle_tracks = []  # List to store circle details with count and absence count
+        self.vertical_line_tracks = []
+        self.horizontal_line_tracks = []
+        self.counter = 0
+        self.ready_status = False
     
-    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=10, minLineLength=100, maxLineGap=10)
+    def get_frame(self,frame):
+        # Capture frame from camera
+        #ret, frame = self.cap.read()
+        
+        # Crop and rotate the frame
+        cropped_frame = frame[50:450, 280:650]
+        rotated_frame = cv2.transpose(cropped_frame)
+        
+        # Convert to grayscale and apply binary threshold
+        gray_frame = cv2.cvtColor(rotated_frame, cv2.COLOR_BGR2GRAY)
+        _, masked_frame = cv2.threshold(gray_frame, 127, 255, cv2.THRESH_BINARY)
+        
+        # Detect edges using Canny
+        edges = cv2.Canny(masked_frame, 100, 20, apertureSize=3)
 
-    circles = cv2.HoughCircles(masked_frame, 
-                                cv2.HOUGH_GRADIENT, dp=1.6, minDist=30, 
-                                param1=100, param2=20, minRadius=15, maxRadius=30)
+        # Detect lines using Hough Transform
+        lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=10, minLineLength=100, maxLineGap=10)
 
-    circle_tracks=circle_analysis(circles,circle_tracks)
+        # Detect circles using Hough Transform
+        circles = cv2.HoughCircles(masked_frame, 
+                                    cv2.HOUGH_GRADIENT, dp=1.6, minDist=30, 
+                                    param1=100, param2=20, minRadius=15, maxRadius=30)
 
-    rotated_frame,circle_colors=label_cricles(rotated_frame,masked_frame,circle_tracks,[])
+        # Circle analysis and update circle tracks
+        self.circle_tracks = circle_analysis(circles, self.circle_tracks)
+        
+        # Label circles with colors
+        rotated_frame, circle_colors = label_circles(rotated_frame, masked_frame, self.circle_tracks, [])
+        
+        # Line analysis (vertical and horizontal lines)
+        self.vertical_line_tracks, self.horizontal_line_tracks = line_analysis(lines, self.vertical_line_tracks, self.horizontal_line_tracks)
+        
+        # Draw features on the frame
+        rotated_frame = draw_features_items(rotated_frame, self.circle_tracks, self.vertical_line_tracks, self.horizontal_line_tracks)
 
+        # Check if the system is ready
+        if len(self.vertical_line_tracks) + len(self.horizontal_line_tracks) + len(self.circle_tracks) == 4 and len(circle_colors) == len(self.circle_tracks):
+            self.counter += 1
+            if self.counter > 2:
+                self.ready_status = True
+                cv2.putText(rotated_frame, "Ready", (40, 300), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)  # Text color black
+        else:
+            self.ready_status = False
+            self.counter = 0
+        
+        pos = [0, 0, 0, 0]  # Default position
+        if self.ready_status:
+            pos = detect_puzzle(self.circle_tracks, self.vertical_line_tracks, self.horizontal_line_tracks, circle_colors)
 
-    
-    vertical_line_tracks,horizontal_line_tracks=line_analysis(lines,vertical_line_tracks,horizontal_line_tracks)
-    
-    rotated_frame=draw_features_items(rotated_frame,circle_tracks,vertical_line_tracks,horizontal_line_tracks)
+        return rotated_frame, masked_frame, edges, pos
+if __name__=="__main__":
+    camera=Camera()# Display the resulting frames)
+    while True:
+        rotated_frame,masked_frame,edges,pos=camera.get_frame()
 
-    
-    if len(vertical_line_tracks)+len(horizontal_line_tracks)+len(circle_tracks)==4 and (len(circle_colors)== len(circle_tracks)):
-        counter+=1
-        if counter>40:
-            ready_status=True
-            cv2.putText(rotated_frame, "Ready", (40,300), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)  # Text color black
-    else:
-        ready_status=False
-        counter=0
-    pos=[0,0,0,0]
-    if ready_status:
-        pos=detect_puzzle(circle_tracks,vertical_line_tracks,horizontal_line_tracks,circle_colors)
-        print(pos)
-    # Display the resulting frames
-    cv2.imshow('Camera Feed with Circles and Lines', rotated_frame)
-    cv2.imshow('Masked Frame', masked_frame)
-    cv2.imshow('edges', edges)
-    cv2.imshow('Masked Frame', masked_frame)
-    # Wait for the user to press 'q' to exit the loop
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-# Release the capture object and close the display window
-cap.release()
-cv2.destroyAllWindows()
+        # Display the resulting frames
+        cv2.imshow('Camera Feed with Circles and Lines', rotated_frame)
+        cv2.imshow('Masked Frame', masked_frame)
+        cv2.imshow('edges', edges)
+        cv2.imshow('Masked Frame', masked_frame)
+        # Wait for the user to press 'q' to exit the loop
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    # Release the capture object and close the display window
+    camera.cap.release()
+    cv2.destroyAllWindows()
