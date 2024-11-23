@@ -10,7 +10,7 @@ def transform_image(image, flip=False, rotate=0):
     
     return image
 
-def display_images(input_values, img1, img2, output_size=(450, 500)):
+def display_images(input_values, img1=Image.open('drawing_features/curved_line.png'), img2=Image.open('drawing_features/st_line.png'), output_size=(450, 500)):
     
     images = []
     

@@ -7,6 +7,7 @@ import streamlit as st
 from camera_input_live import camera_input_live
 import cv2
 import numpy as np
+from drawing_tools import display_images
 
 
 
@@ -48,7 +49,7 @@ if  st.session_state.page==2:
         st.session_state.images=[]
         st.session_state.wait=False
     image = camera_input_live()
-    col1,col2=st.columns(2)
+    col1,col2,col3=st.columns(3)
     if image:
         bytes_data = image.getvalue()
         cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
@@ -57,6 +58,7 @@ if  st.session_state.page==2:
         col2.image(edges)
         if sum([1 for i in pos if i==0])<3:
             st.session_state.pos=pos
+        col3.image(display_images(st.session_state.pos))
         st.write(st.session_state.pos)
         col=st.columns(6)
         col[3].write(str(len(st.session_state.images))+'/9')
@@ -107,6 +109,9 @@ if st.session_state.page==3:
         for i in range(9):
             with cols[i % 3]:  # Using modulo to cycle through columns
                 st.image(st.session_state.images[i], width=150)
+        for i in range(9):
+            with cols[i % 3]:  # Using modulo to cycle through columns
+                st.image(display_images(st.session_state.puzzle[i]), width=150)
     # Input for a Python list
     input_list = st.text_area("Enter a Puzzle List", st.session_state.puzzle)
 
@@ -130,7 +135,7 @@ if  st.session_state.page==4 :
 
     # Create a placeholder for the images
     image_placeholder = st.empty()
-
+    print(st.session_state.puzzle)
     # Get list of images from the folder with the same name as project_name
     folder_path = f"./{st.session_state.project_name}"
     if os.path.exists(folder_path):
@@ -148,8 +153,9 @@ if  st.session_state.page==4 :
         st.error("No images found in the project folder.")
     col=st.columns(3)
     for count,i in enumerate(st.session_state.solved_puzzle):
-        col[count//3].write(i[1]+1)
-        col[count//3].image(st.session_state.images[i[1]],width=200)
+        st.write(i)
+        col[count%3].write(str(i[1]+1)+' rotate '+str(i[2]))
+        col[count%3].image(st.session_state.images[i[1]],width=200)
 
     if st.button('Replay'):
         for img in image_files:

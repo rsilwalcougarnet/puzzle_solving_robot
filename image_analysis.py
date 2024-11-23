@@ -95,7 +95,7 @@ def circle_analysis(circles,circle_tracks):
 
     # Update absence count for circles not detected in this iteration
     for i in range(len(circle_tracks)):
-        if circle_tracks[i][4] < 5:
+        if circle_tracks[i][4] < 3:
             circle_tracks[i][4] += 1  # Increment the absent count if not detected
         else:
             # Remove the circle if it's been absent for more than 10 iterations

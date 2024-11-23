@@ -11,11 +11,11 @@ def draw_features_items(rotated_frame,circle_tracks,vertical_line_tracks,horizon
 
     for track in vertical_line_tracks:
         x1, y1, x2, y2, count, absent_count = track
-        cv2.line(rotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 3)  # Green for vertical lines
+        cv2.line(rotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 3)
 
     for track in horizontal_line_tracks:
         x1, y1, x2, y2, count, absent_count = track
-        cv2.line(rotated_frame, (x1, y1), (x2, y2), (255, 0, 0), 3)  # Blue for horizontal lines
+        cv2.line(rotated_frame, (x1, y1), (x2, y2), (255, 0, 0), 3) 
     return rotated_frame
 
 def label_circles(rotated_frame,masked_frame,circle_tracks,circle_colors=[]):
@@ -33,25 +33,21 @@ def label_circles(rotated_frame,masked_frame,circle_tracks,circle_colors=[]):
             black_pixels = np.sum(cropped_region < 100)  
             white_pixels = np.sum(cropped_region >100)  
             if black_pixels > white_pixels:
-                # Output "Black" (Circle is predominantly black)
                 cv2.putText(rotated_frame, "Black", (track_x - 20, track_y - track_r - 10), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2)  # Text color black
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2) 
                 circle_colors.append(0)
             else:
-                # Output "White" (Circle is predominantly white)
                 cv2.putText(rotated_frame, "White", (track_x - 20, track_y - track_r - 10), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)  # Text color white
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2) 
                 circle_colors.append(1)
     return rotated_frame,circle_colors
-# Open the camera (default is 0, which is usually the default webcam)
 
 import cv2
 import numpy as np
 
 class Camera:
     def __init__(self):
-        #self.cap = cv2.VideoCapture(0)
-        self.circle_tracks = []  # List to store circle details with count and absence count
+        self.circle_tracks = [] 
         self.vertical_line_tracks = []
         self.horizontal_line_tracks = []
         self.counter = 0
@@ -65,6 +61,7 @@ class Camera:
         cropped_frame = frame[50:450, 280:650]
         rotated_frame = cv2.transpose(cropped_frame)
         
+        #rotated_frame=cv2.flip(rotated_frame,1)
         # Convert to grayscale and apply binary threshold
         gray_frame = cv2.cvtColor(rotated_frame, cv2.COLOR_BGR2GRAY)
         _, masked_frame = cv2.threshold(gray_frame, 127, 255, cv2.THRESH_BINARY)
@@ -104,22 +101,21 @@ class Camera:
         
         pos = [0, 0, 0, 0]  # Default position
         if self.ready_status:
-            pos = detect_puzzle(self.circle_tracks, self.vertical_line_tracks, self.horizontal_line_tracks, circle_colors)
+            try:
+                pos = detect_puzzle(self.circle_tracks, self.vertical_line_tracks, self.horizontal_line_tracks, circle_colors)
+            except:
+                print('error')
 
         return rotated_frame, masked_frame, edges, pos
 if __name__=="__main__":
-    camera=Camera()# Display the resulting frames)
+    camera=Camera()
     while True:
         rotated_frame,masked_frame,edges,pos=camera.get_frame()
-
-        # Display the resulting frames
         cv2.imshow('Camera Feed with Circles and Lines', rotated_frame)
         cv2.imshow('Masked Frame', masked_frame)
         cv2.imshow('edges', edges)
         cv2.imshow('Masked Frame', masked_frame)
-        # Wait for the user to press 'q' to exit the loop
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-    # Release the capture object and close the display window
     camera.cap.release()
     cv2.destroyAllWindows()
