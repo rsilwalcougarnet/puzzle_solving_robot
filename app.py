@@ -8,24 +8,54 @@ from camera_input_live import camera_input_live
 import cv2
 import numpy as np
 from drawing_tools import display_images
+import json
+import serial
 
+def load_puzzle(filename):
+    try:
+        with open(filename, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        st.error(f"File '{filename}' not found!")
+        return None
 
+# Input for the filename
 
-    
-
-
-
-# Title of the app
 st.title("OWI Puzzle Solver")
 
-# Instructions for the user
-st.write("""
-    This app lets you input a Python list, and it will process the list.
-    You can input a list of numbers, strings, or any other data type.
-""")
 
-# Initialize session state variables
-if 'project_name' not in st.session_state:
+if 'page' not in st.session_state:
+    st.session_state.page=-1
+
+
+if st.session_state.page==-1:
+    # Instructions for the user
+    st.image('./display_image.png')
+    st.write("""
+        This app lets you input a Python list, and it will process the list.
+        You can input a list of numbers, strings, or any other data type.
+    """)
+    if st.button('Start'):
+        st.session_state.page=0
+        st.rerun()
+
+    filename = st.text_input("Enter the filename to load the puzzle")
+    if st.button('Load'):
+        if filename:
+            st.session_state.project_name=filename
+            solved_puzzle = load_puzzle(st.session_state.project_name+'/solved_puzzle.json')
+            
+            if solved_puzzle:
+                st.session_state.solved_puzzle = solved_puzzle
+                st.success("Puzzle loaded successfully!")
+                st.write(f"Loaded puzzle: {st.session_state.solved_puzzle}")
+                time.sleep(1)
+                st.session_state.page=6
+                st.rerun()
+        else:
+            st.error("Please provide a filename.")
+        
+if st.session_state.page==0:
     st.session_state.project_name = None
     st.session_state.solved_puzzle = None
     st.session_state.played = False
@@ -34,7 +64,7 @@ if 'project_name' not in st.session_state:
 
 
 if st.session_state.page==1:
-    title = st.text_input("Movie title", "p1")
+    title = st.text_input("Project title", "p1")
     if st.button("Next"):
         if len(title) > 1:
             st.session_state.project_name = title
@@ -98,8 +128,6 @@ if  st.session_state.page==2:
                 st.write(string)
                 st.image(i)
         
-        
-
 # Page 2: Puzzle list input (after Next is pressed)
 if st.session_state.page==3:
     st.title(st.session_state.project_name)
@@ -132,22 +160,16 @@ if st.session_state.page==3:
 
 if  st.session_state.page==4 :
     st.title('Puzzle Solved')
-
-    # Create a placeholder for the images
     image_placeholder = st.empty()
     print(st.session_state.puzzle)
-    # Get list of images from the folder with the same name as project_name
     folder_path = f"./{st.session_state.project_name}"
     if os.path.exists(folder_path):
         image_files = [f for f in os.listdir(folder_path) if f.endswith(('jpg', 'jpeg', 'png'))]
-        image_files.sort()  # Sort the images to display in order
-
-        # Display images one by one with a delay of 0.5 seconds
+        image_files.sort()
         for img in image_files:
             img_path = os.path.join(folder_path, img)
-            # Use the placeholder to update the image dynamically
             image_placeholder.image(img_path,width=500)
-            time.sleep(0.5)  # Add a 0.5-second delay between images
+            time.sleep(0.5)
     
     else:
         st.error("No images found in the project folder.")
@@ -160,6 +182,59 @@ if  st.session_state.page==4 :
     if st.button('Replay'):
         for img in image_files:
             img_path = os.path.join(folder_path, img)
-            # Use the placeholder to update the image dynamically
             image_placeholder.image(img_path, use_column_width=True)
-            time.sleep(0.5)  # Add a 0.5-second delay between images
+            time.sleep(0.5) 
+    
+    if st.button('Save'):
+        with open(st.session_state.project_name+'/solved_puzzle.json', 'w') as f:
+            json.dump(st.session_state.solved_puzzle, f)
+        st.success("Puzzle saved successfully!")
+
+    if st.button('Next'):
+        st.session_state.page=5
+        st.rerun()
+        
+if st.session_state.page==5:
+    filename = st.text_input("Enter comport to connect")
+
+    if st.button('Connect'):
+        if filename:
+            try:
+                st.session_state.arduino = serial.Serial(filename, 9600, timeout=1)
+                time.sleep(2) 
+                if st.session_state.is_open:
+                    st.success(f"Successfully connected to {filename}")
+                else:
+                    st.error(f"Failed to connect to {filename}")
+            except serial.SerialException as e:
+                st.error(f"Failed to connect to {filename}. Error: {e}")
+        else:
+            st.error("Please enter a valid COM port.")
+        
+    if st.button('Next'):
+        st.session_state.page=6
+        st.session_state.id=0
+        st.rerun()
+
+if st.session_state.page==6:
+    if 'id' not in st.session_state:
+        st.session_state.id=0
+    st.title('Place Blocks')
+    st.write(f'Step {st.session_state.id+1}')
+    if st.session_state.solved_puzzle[st.session_state.id][2]!=0:
+        st.write(f'Rotate the block {st.session_state.solved_puzzle[st.session_state.id][2]*90}')
+    else:
+        st.write("No rotation need")
+
+    st.write(f"Place Block in postion {st.session_state.id+1}")
+    st.image(display_images(st.session_state.solved_puzzle[st.session_state.id][0]))
+    
+    if st.button('Lets Go'):
+        if 'arduino' in st.session_state:
+            st.session_state.arduino.write(b'Go to postion 1')
+
+        st.write('done')
+        st.session_state.id+=1
+        st.rerun()
+    
+        
