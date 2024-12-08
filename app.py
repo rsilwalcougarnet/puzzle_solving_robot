@@ -19,8 +19,6 @@ def load_puzzle(filename):
         st.error(f"File '{filename}' not found!")
         return None
 
-# Input for the filename
-
 st.title("OWI Puzzle Solver")
 
 
@@ -29,12 +27,8 @@ if 'page' not in st.session_state:
 
 
 if st.session_state.page==-1:
-    # Instructions for the user
-    st.image('./display_image.png')
     st.write("""
-        This app lets you input a Python list, and it will process the list.
-        You can input a list of numbers, strings, or any other data type.
-    """)
+        This app lets you solve puzzles and place those puzzle with OWI robot""")
     if st.button('Start'):
         st.session_state.page=0
         st.rerun()
@@ -50,7 +44,7 @@ if st.session_state.page==-1:
                 st.success("Puzzle loaded successfully!")
                 st.write(f"Loaded puzzle: {st.session_state.solved_puzzle}")
                 time.sleep(1)
-                st.session_state.page=6
+                st.session_state.page=5
                 st.rerun()
         else:
             st.error("Please provide a filename.")
@@ -128,22 +122,17 @@ if  st.session_state.page==2:
                 st.write(string)
                 st.image(i)
         
-# Page 2: Puzzle list input (after Next is pressed)
 if st.session_state.page==3:
     st.title(st.session_state.project_name)
     cols = st.columns(3)
     if len(st.session_state.images)==9:
-    # Loop through the images and assign them to each column in the grid
         for i in range(9):
-            with cols[i % 3]:  # Using modulo to cycle through columns
+            with cols[i % 3]:
                 st.image(st.session_state.images[i], width=150)
         for i in range(9):
-            with cols[i % 3]:  # Using modulo to cycle through columns
+            with cols[i % 3]: 
                 st.image(display_images(st.session_state.puzzle[i]), width=150)
-    # Input for a Python list
     input_list = st.text_area("Enter a Puzzle List", st.session_state.puzzle)
-
-    # Convert input string to an actual Python list
     try:
         user_list = eval(input_list)
         if not isinstance(user_list, list):
@@ -202,7 +191,7 @@ if st.session_state.page==5:
             try:
                 st.session_state.arduino = serial.Serial(filename, 9600, timeout=1)
                 time.sleep(2) 
-                if st.session_state.is_open:
+                if st.session_state.arduino.is_open:
                     st.success(f"Successfully connected to {filename}")
                 else:
                     st.error(f"Failed to connect to {filename}")
@@ -217,24 +206,36 @@ if st.session_state.page==5:
         st.rerun()
 
 if st.session_state.page==6:
+
     if 'id' not in st.session_state:
         st.session_state.id=0
-    st.title('Place Blocks')
-    st.write(f'Step {st.session_state.id+1}')
-    if st.session_state.solved_puzzle[st.session_state.id][2]!=0:
-        st.write(f'Rotate the block {st.session_state.solved_puzzle[st.session_state.id][2]*90}')
-    else:
-        st.write("No rotation need")
-
-    st.write(f"Place Block in postion {st.session_state.id+1}")
-    st.image(display_images(st.session_state.solved_puzzle[st.session_state.id][0]))
     
-    if st.button('Lets Go'):
-        if 'arduino' in st.session_state:
-            st.session_state.arduino.write(b'Go to postion 1')
+    for i in range(0,9):
+        st.write(f'Step {i+1}')
 
-        st.write('done')
-        st.session_state.id+=1
-        st.rerun()
+        if st.button('Go to pickup position for piece '+str(i+1)):
+            if 'arduino' in st.session_state:
+                time.sleep(1)
+                pickup= str(0)
+                st.session_state.arduino.write(pickup.encode())
+
+        st.write(f'Place blocks {st.session_state.solved_puzzle[i][1]+1} on the Table')
+        
+        if st.session_state.solved_puzzle[i][2]!=0:
+            st.write()
+            if st.button(f'Rotate the block {st.session_state.solved_puzzle[i][2]*90} for {i+1}'):
+                if 'arduino' in st.session_state:
+                    rotate= 'R'+str(st.session_state.solved_puzzle[i][2]*90)
+                    st.session_state.arduino.write(rotate.encode())
+        else:
+            st.write("No rotation need")
+
+        if st.button('move'+str(i+1)):
+            if 'arduino' in st.session_state:
+                time.sleep(1)
+                move= str(i+1)
+                st.session_state.arduino.write(move.encode())
+        st.write('-'*50)
+                
     
         
